@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출석체크 명렬표</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background-color: #f0f8ff;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .participant {
+            display: flex;
+            align-items: center;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            position: relative;
+        }
+        .participant-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 15px;
+        }
+        .participant div, .participant a {
+            margin: 0 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .call-button, .reset-button {
+            background-color: #ffff99;
+            color: black;
+            padding: 5px 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            text-align: center;
+        }
+        /* 변경된 부분: 마우스를 올려놓으면 색이 바뀌는 효과 제거 */
+        /*
+        .participant:hover {
+            background-color: #fad0c4;
+        }
+        */
+        .participant.clicked {
+            background-color: lightcoral;
+        }
+        .name-box {
+            background-color: lightyellow;
+            border-radius: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+            /* 추가된 부분: 폰트 크기 조절 */
+            font-size: 18px;
+        }
+        .name-box:hover {
+            background-color: #fff4b3;
+        }
+        .name-box.clicked {
+            background-color: #ffc0cb;
+        }
+        .name-box.underline {
+            text-decoration: underline;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            .participant {
+                flex-wrap: wrap;
+            }
+            .participant div, .participant a {
+                flex: 1;
+                white-space: normal;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="participants" class="container"></div>
+
+<button id="reset-button" class="reset-button">전체 초기화</button>
+
+<script>
+async function fetchSheetData() {
+    const sheetId = '1JsMGoD5enBE0EtMfihOy_58HcG1dzcDfEtxn2M0Y65Q';
+    const apiKey = 'AIzaSyDrClgUbT-0cFoYe4W81dyxikZVbjVlcT8';
+    const range = 'Sheet1';
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        return data.values;
+    } catch (error) {
+        console.error('Error fetching sheet data:', error);
+        return [];
+    }
+}
+
+function createParticipantElement(participantData, index) {
+    const [serial, name, phone, additionalPhone, photoUrl] = participantData;
+
+    const participantDiv = document.createElement('div');
+    participantDiv.classList.add('participant');
+    participantDiv.dataset.defaultColor = '#ffffff';
+    participantDiv.dataset.clickedColor = '#fad0c4';
+    participantDiv.dataset.clickedTwiceColor = '#ff99cc';
+    participantDiv.dataset.clickedThrice = false;
+    participantDiv.dataset.clickedTwice = false;
+
+    const serialDiv = document.createElement('div');
+    serialDiv.textContent = serial;
+    serialDiv.classList.add('serial-number');
+
+    const nameDiv = document.createElement('div');
+    nameDiv.textContent = name || '-';
+    nameDiv.classList.add('name-box');
+    if (name) {
+        nameDiv.classList.add('underline');
+    }
+
+    const callButton1 = document.createElement('a');
+    if (phone && phone.trim() !== '') {
+        callButton1.href = `tel:${phone}`;
+        callButton1.className = 'call-button';
+        /* 변경된 부분: '전화걸기' -> '전화' */
+        callButton1.textContent = '전화';
+    } else {
+        callButton1.textContent = '-';
+        participantDiv.classList.add('no-phone');
+    }
+
+    const callButton2 = document.createElement('a');
+    if (additionalPhone && additionalPhone.trim() !== '') {
+        callButton2.href = `tel:${additionalPhone}`;
+        callButton2.className = 'call-button';
+        /* 변경된 부분: '추가전화걸기' -> '학부모' */
+        callButton2.textContent = '학부모';
+    } else {
+        callButton2.textContent = '-';
+    }
+
+    participantDiv.appendChild(serialDiv);
+    
+    if (photoUrl) {
+        const img = document.createElement('img');
+        img.src = photoUrl;
+        img.alt = 'Participant Image';
+        img.classList.add('participant-img');
+        participantDiv.appendChild(img);
+    }
+
+    participantDiv.appendChild(nameDiv);
+    participantDiv.appendChild(callButton1);
+    participantDiv.appendChild(callButton2);
+
+    /* 변경된 부분: 이름 부분만 클릭 시 색상 변경 */
+    nameDiv.onclick = () => {
+        const clickedTwice = JSON.parse(participantDiv.dataset.clickedTwice);
+        const clickedThrice = JSON.parse(participantDiv.dataset.clickedThrice);
+
+        if (!clickedTwice && !clickedThrice) {
+            participantDiv.style.backgroundColor = participantDiv.dataset.clickedColor;
+            participantDiv.dataset.clickedTwice = true;
+        } else if (clickedTwice && !clickedThrice) {
+            participantDiv.style.backgroundColor = participantDiv.dataset.clickedTwiceColor;
+            participantDiv.dataset.clickedThrice = true;
+        } else {
+            participantDiv.style.backgroundColor = participantDiv.dataset.defaultColor;
+            participantDiv.dataset.clickedThrice = false;
+            participantDiv.dataset.clickedTwice = false;
+        }
+    };
+
+    return participantDiv;
+}
+
+async function displayParticipants() {
+    const data = await fetchSheetData();
+    const container = document.getElementById('participants');
+    data.slice(1).forEach((participantData, index) => {
+        const participantElement = createParticipantElement(participantData, index + 1);
+        container.appendChild(participantElement);
+    });
+}
+
+window.onload = displayParticipants;
+
+// Reset button element
+const resetButton = document.getElementById('reset-button');
+resetButton.style.backgroundColor = 'blue';
+resetButton.style.color = 'white';
+resetButton.style.padding = '10px 20px';
+resetButton.style.border = 'none';
+resetButton.style.borderRadius = '5px';
+resetButton.style.marginTop = '20px';
+resetButton.style.fontSize = '16px';
+resetButton.style.cursor = 'pointer';
+
+// Reset button click event handler
+resetButton.onclick = () => {
+    const participantElements = document.querySelectorAll('.participant');
+    participantElements.forEach(element => {
+        element.style.backgroundColor = element.dataset.defaultColor;
+        element.dataset.clickedThrice = false;
+        element.dataset.clickedTwice = false;
+    });
+};
+</script>
+
+</body>
+</html>
